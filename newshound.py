@@ -77,13 +77,13 @@ def remove_subscription(channel_id, feed_url):
     conn.close()
 
 
-CONTENT_HEADER_TEMPLATE = "### :new: New articles at {time} ({entries_count} articles)"
+CONTENT_HEADER_TEMPLATE = "### :new: New articles from {feed_title} at {time} ({entries_count} articles)"
 CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more](<{link}>)" # use <> to force link not to enriched
 
-async def send_feed_updates(channel, feed_url, entries):
+async def send_feed_updates(channel, feed_url,feed_title, entries):
     """Sends feed updates to a Discord channel."""
     if entries and len(entries)>0:
-        content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(entries))
+        content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M"), entries_count=len(entries),feed_title = feed_title)
         for entry in entries:
             content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
 
@@ -102,7 +102,7 @@ async def fetch_and_send_news():
                 if channel:
                     # Extract new articles
                     new_entries = [entry for entry in feed.entries if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) > last_checked]
-                    await send_feed_updates(channel, feed_url, new_entries)
+                    await send_feed_updates(channel, feed_url,feed.feed.get('title'), new_entries)
 
             update_last_checked(channel_id, feed_url)  # Update the last checked time
         except Exception as e:
@@ -148,7 +148,7 @@ async def subscribe(ctx, feed_url: str):
         try:
             feed = feedparser.parse(feed_url)
             entries = feed.entries[:min(len(feed.entries),5)]
-            await send_feed_updates(ctx.channel, feed_url, entries)
+            await send_feed_updates(ctx.channel,feed_url,feed_name,entries)
         except Exception as e:
             print(f"Failed to send initial articles: {feed_url}, Error: {e}")
 
