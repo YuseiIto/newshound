@@ -1,6 +1,8 @@
 # Newshound 📰
 
-![Newshound Logo](newshound.png)
+<p align="center">
+ <img src="newshound.png" alt="newshound logo" width="120px" height="120px"/>
+</p>
 
 Newshound is a Discord bot that delivers news from your favorite RSS feeds directly to your server.
 Stay informed without ever leaving Discord!
