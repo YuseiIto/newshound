@@ -23,7 +23,7 @@ if not TOKEN:
 
 # 環境変数からデータベースファイルのパスを取得 (デフォルトは"newshound.db")
 DATABASE_FILE = os.environ.get("DATABASE_FILE", "newshound.db")
-POLLING_INTERVAL_MINUTES = 1  # ポーリング間隔 (分)
+POLLING_INTERVAL_MINUTES = 5  # ポーリング間隔 (分)
 
 # Botの初期化
 intents = discord.Intents.default()
@@ -78,6 +78,9 @@ def remove_subscription(channel_id, feed_url):
     conn.close()
 
 
+CONTENT_HEADER_TEMPLATE = "### :new: {time} の新着記事({entries_count}件)"
+CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more]({link})"
+
 # RSSフィードからニュースを取得し、チャンネルに送信
 async def fetch_and_send_news():
     subscriptions = get_subscriptions_all() # すべての購読を取得
@@ -91,15 +94,14 @@ async def fetch_and_send_news():
                     # 新しい記事を抽出
                     new_entries = [entry for entry in feed.entries if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) > last_checked]
 
-                    # 新しい記事を最大5件送信 (調整可能)
-                    for entry in new_entries[:min(len(new_entries),5)]:
-                        embed = discord.Embed(
-                            title=entry.title,
-                            url=entry.link,
-                            description=entry.get('summary', '記事概要はありません'), # summaryがなければデフォルト値を表示
-                            color=discord.Color.blue()
-                        )
-                        await channel.send(embed=embed)
+                    if len(new_entries)==0:
+                        return
+                    content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(new_entries))
+                    for entry in new_entries:
+                        content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
+
+                    content+="\n\n"
+                    await channel.send(content=content)
                 else:
                     print(f"チャンネルが見つかりません: {channel_id}") #デバッグ用
             update_last_checked(channel_id, feed_url) # 最終確認時刻を更新
@@ -138,29 +140,27 @@ async def subscribe(ctx, feed_url: str):
 
     if add_subscription(ctx.channel.id, feed_url):
         if feed_name:
-            await ctx.send(f"このチャンネルで **{feed_name}** ({feed_url}) の購読を開始しました。直近5件（最大）の記事は以下の通りです")
+            await ctx.reply(f"このチャンネルで **{feed_name}** ({feed_url}) の購読を開始しました。")
         else:
-            await ctx.send(f"このチャンネルで {feed_url} の購読を開始しました。")
+            await ctx.reply(f"このチャンネルで {feed_url} の購読を開始しました。")
 
         # 直近5件の記事を送信
         try:
             feed = feedparser.parse(feed_url)
-            if feed.entries:
+            if feed.entries and len(feed.entries)>0:
+                content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(feed.entries))
                 for entry in feed.entries[:min(len(feed.entries),5)]:
-                    embed = discord.Embed(
-                        title=entry.title,
-                        url=entry.link,
-                        description=entry.get('summary', '記事概要はありません'), # summaryがなければデフォルト値を表示
-                        color=discord.Color.blue()
-                    )
-                    await ctx.send(embed=embed)
+                    content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
+
+                content+="\n\n"
+                await ctx.send(content=content)
         except Exception as e:
             print(f"初回記事送信に失敗: {feed_url}, エラー: {e}")
 
         update_last_checked(ctx.channel.id, feed_url) # 最終確認時刻を更新
 
     else:
-        await ctx.send("すでに購読しています。")
+        await ctx.reply("すでに購読済みのフィードです。")
 
 # /unsubscribe コマンド
 @bot.command(name='unsubscribe')
