@@ -7,8 +7,6 @@
 Newshound is a Discord bot that delivers news from your favorite RSS feeds directly to your server.
 Stay informed without ever leaving Discord!
 
-> newshound [noun] a reporter who puts a lot of effort into discovering new stories [Cambridge English Dictionary](https://dictionary.cambridge.org/dictionary/english/newshound)
-
 ## ✨ Features
 
 -   **Subscribe to RSS Feeds:** Use the `/subscribe` command to add your favorite RSS feeds to a channel.
