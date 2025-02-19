@@ -205,7 +205,7 @@ class UnsubscribeSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         #  Update View to reflect button states
         feed_url = self.values[0]
-        await interaction.response.edit_message(content=f"Really unsubscribe from {feed_url}?",view=ConfirmSelectionView(feed_url,interaction.channel_id))
+        await interaction.response.edit_message(content=f"Are you sure want to unsubscribe from {feed_url}?",view=ConfirmSelectionView(feed_url,interaction.channel_id))
 
 
 class UnsubscribeSelectView(discord.ui.View):
