@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from alembic import command
 from alembic.config import Config
 
+from datetime import datetime, timezone
+
 # .envファイルから環境変数をロード
 load_dotenv()
 
@@ -52,12 +54,20 @@ def add_subscription(channel_id, feed_url):
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO subscriptions (channel_id, feed_url) VALUES (?, ?)", (channel_id, feed_url))
+        cursor.execute("INSERT INTO subscriptions (channel_id, feed_url, last_checked) VALUES (?, ?, ?)", (channel_id, feed_url, datetime.now(timezone.utc).isoformat()))
         conn.commit()
         conn.close()
         return True
     except sqlite3.IntegrityError:
         return False  # 重複購読
+
+# 最終確認時刻を更新
+def update_last_checked(channel_id, feed_url):
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE subscriptions SET last_checked = ? WHERE channel_id = ? AND feed_url = ?", (datetime.now(timezone.utc).isoformat(), channel_id, feed_url))
+    conn.commit()
+    conn.close()
 
 # 購読情報をデータベースから削除
 def remove_subscription(channel_id, feed_url):
@@ -71,14 +81,18 @@ def remove_subscription(channel_id, feed_url):
 # RSSフィードからニュースを取得し、チャンネルに送信
 async def fetch_and_send_news():
     subscriptions = get_subscriptions_all() # すべての購読を取得
-    for channel_id, feed_url in subscriptions:
+    for channel_id, feed_url, last_checked_str in subscriptions:
         try:
+            last_checked = datetime.fromisoformat(last_checked_str)
             feed = feedparser.parse(feed_url)
             if feed.entries:
                 channel = bot.get_channel(channel_id)
                 if channel:
-                    # 最新の記事を最大5件送信 (調整可能)
-                    for entry in feed.entries[:5]:
+                    # 新しい記事を抽出
+                    new_entries = [entry for entry in feed.entries if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) > last_checked]
+
+                    # 新しい記事を最大5件送信 (調整可能)
+                    for entry in new_entries[:min(len(new_entries),5)]:
                         embed = discord.Embed(
                             title=entry.title,
                             url=entry.link,
@@ -88,6 +102,7 @@ async def fetch_and_send_news():
                         await channel.send(embed=embed)
                 else:
                     print(f"チャンネルが見つかりません: {channel_id}") #デバッグ用
+            update_last_checked(channel_id, feed_url) # 最終確認時刻を更新
         except Exception as e:
             print(f"RSSフィードの取得または送信に失敗: {feed_url}, エラー: {e}") #デバッグ用
 
@@ -123,9 +138,27 @@ async def subscribe(ctx, feed_url: str):
 
     if add_subscription(ctx.channel.id, feed_url):
         if feed_name:
-            await ctx.send(f"このチャンネルで **{feed_name}** ({feed_url}) の購読を開始しました。")
+            await ctx.send(f"このチャンネルで **{feed_name}** ({feed_url}) の購読を開始しました。直近5件（最大）の記事は以下の通りです")
         else:
             await ctx.send(f"このチャンネルで {feed_url} の購読を開始しました。")
+
+        # 直近5件の記事を送信
+        try:
+            feed = feedparser.parse(feed_url)
+            if feed.entries:
+                for entry in feed.entries[:min(len(feed.entries),5)]:
+                    embed = discord.Embed(
+                        title=entry.title,
+                        url=entry.link,
+                        description=entry.get('summary', '記事概要はありません'), # summaryがなければデフォルト値を表示
+                        color=discord.Color.blue()
+                    )
+                    await ctx.send(embed=embed)
+        except Exception as e:
+            print(f"初回記事送信に失敗: {feed_url}, エラー: {e}")
+
+        update_last_checked(ctx.channel.id, feed_url) # 最終確認時刻を更新
+
     else:
         await ctx.send("すでに購読しています。")
 
