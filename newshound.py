@@ -6,26 +6,26 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
-# Alembic関連のインポート
+# Alembic related imports
 from alembic import command
 from alembic.config import Config
 
 from datetime import datetime, timezone
 
-# .envファイルから環境変数をロード
+# Load environment variables from .env file
 load_dotenv()
 
-# 環境変数からDiscord Bot Tokenを取得
+# Get Discord Bot Token from environment variables
 TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 if not TOKEN:
-    print("DISCORD_BOT_TOKENが設定されていません")
+    print("DISCORD_BOT_TOKEN is not set")
     exit(1)
 
-# 環境変数からデータベースファイルのパスを取得 (デフォルトは"newshound.db")
+# Get database file path from environment variables (default: newshound.db)
 DATABASE_FILE = os.environ.get("DATABASE_FILE", "newshound.db")
-POLLING_INTERVAL_MINUTES = 5  # ポーリング間隔 (分)
+POLLING_INTERVAL_MINUTES = 5  # Polling interval (minutes)
 
-# Botの初期化
+# Initialize Bot
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
@@ -33,23 +33,23 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 
 def run_migrations():
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{DATABASE_FILE}") # sqlalchemy.urlを動的に設定
+    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{DATABASE_FILE}") # Inject database URL
     try:
-        command.upgrade(alembic_cfg, "head") # headは最新のリビジョンを意味する
+        command.upgrade(alembic_cfg, "head") # Keep the database up-to-date
     except Exception as e:
-        print(f"マイグレーションエラー: {e}")
+        print(f"Migration Error: {e}")
 
 
-# 購読情報をデータベースから取得
+# Get subscription information from the database
 def get_subscriptions(channel_id):
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT feed_url FROM subscriptions WHERE channel_id = ?", (channel_id,))
     subscriptions = cursor.fetchall()
     conn.close()
-    return [row[0] for row in subscriptions] # feed_url のリストを返す
+    return [row[0] for row in subscriptions]  # Return list of feed_url
 
-# 購読情報をデータベースに登録
+# Add subscription information to the database
 def add_subscription(channel_id, feed_url):
     try:
         conn = sqlite3.connect(DATABASE_FILE)
@@ -59,9 +59,9 @@ def add_subscription(channel_id, feed_url):
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        return False  # 重複購読
+        return False  # Duplicate Subscription
 
-# 最終確認時刻を更新
+# Update last checked timestamp
 def update_last_checked(channel_id, feed_url):
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
@@ -69,7 +69,7 @@ def update_last_checked(channel_id, feed_url):
     conn.commit()
     conn.close()
 
-# 購読情報をデータベースから削除
+# Remove subscription information from the database
 def remove_subscription(channel_id, feed_url):
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
@@ -78,12 +78,12 @@ def remove_subscription(channel_id, feed_url):
     conn.close()
 
 
-CONTENT_HEADER_TEMPLATE = "### :new: {time} の新着記事({entries_count}件)"
+CONTENT_HEADER_TEMPLATE = "### :new: New articles at {time} ({entries_count} articles)"
 CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more]({link})"
 
-# RSSフィードからニュースを取得し、チャンネルに送信
+# Fetch news from RSS feeds and send to the channel
 async def fetch_and_send_news():
-    subscriptions = get_subscriptions_all() # すべての購読を取得
+    subscriptions = get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
             last_checked = datetime.fromisoformat(last_checked_str)
@@ -91,7 +91,7 @@ async def fetch_and_send_news():
             if feed.entries:
                 channel = bot.get_channel(channel_id)
                 if channel:
-                    # 新しい記事を抽出
+                    # Extract new articles
                     new_entries = [entry for entry in feed.entries if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) > last_checked]
 
                     if len(new_entries)==0:
@@ -103,10 +103,10 @@ async def fetch_and_send_news():
                     content+="\n\n"
                     await channel.send(content=content)
                 else:
-                    print(f"チャンネルが見つかりません: {channel_id}") #デバッグ用
-            update_last_checked(channel_id, feed_url) # 最終確認時刻を更新
+                    print(f"Channel not found: {channel_id}")  # Debugging
+            update_last_checked(channel_id, feed_url)  # Update the last checked time
         except Exception as e:
-            print(f"RSSフィードの取得または送信に失敗: {feed_url}, エラー: {e}") #デバッグ用
+            print(f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}")  # Debugging
 
 def get_subscriptions_all():
     conn = sqlite3.connect(DATABASE_FILE)
@@ -117,34 +117,34 @@ def get_subscriptions_all():
     return subscriptions
 
 
-# 定期ポーリングタスク
+# Periodic polling task
 @tasks.loop(minutes=POLLING_INTERVAL_MINUTES)
 async def polling_task():
     await fetch_and_send_news()
 
-# Bot起動時の処理
+# Bot startup event
 @bot.event
 async def on_ready():
-    print(f'{bot.user} としてログインしました')
-    run_migrations() # マイグレーションを実行
+    print(f'{bot.user} logged in')
+    run_migrations()  # Run migrations
     polling_task.start()
 
-# /subscribe コマンド
+# /subscribe Command
 @bot.command(name='subscribe')
 async def subscribe(ctx, feed_url: str):
     try:
         feed = feedparser.parse(feed_url)
-        feed_name = feed.feed.get('title', None) # タイトルを取得
+        feed_name = feed.feed.get('title', None)  # Get title
     except:
         feed_name = None
 
     if add_subscription(ctx.channel.id, feed_url):
         if feed_name:
-            await ctx.reply(f"このチャンネルで **{feed_name}** ({feed_url}) の購読を開始しました。")
+            await ctx.reply(f"Started subscribing to **{feed_name}** ({feed_url}) in this channel.")
         else:
-            await ctx.reply(f"このチャンネルで {feed_url} の購読を開始しました。")
+            await ctx.reply(f"Started subscribing to {feed_url} in this channel.")
 
-        # 直近5件の記事を送信
+        # Send the latest 5 articles
         try:
             feed = feedparser.parse(feed_url)
             if feed.entries and len(feed.entries)>0:
@@ -155,40 +155,40 @@ async def subscribe(ctx, feed_url: str):
                 content+="\n\n"
                 await ctx.send(content=content)
         except Exception as e:
-            print(f"初回記事送信に失敗: {feed_url}, エラー: {e}")
+            print(f"Failed to send initial articles: {feed_url}, Error: {e}")
 
-        update_last_checked(ctx.channel.id, feed_url) # 最終確認時刻を更新
+        update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
 
     else:
-        await ctx.reply("すでに購読済みのフィードです。")
+        await ctx.reply("Already subscribed to this feed.")
 
-# /unsubscribe コマンド
+# /unsubscribe Command
 @bot.command(name='unsubscribe')
 async def unsubscribe(ctx):
     subscriptions = get_subscriptions(ctx.channel.id)
     if not subscriptions:
-        await ctx.reply("このチャンネルでは何も購読していません。")
+        await ctx.reply("Not subscribed to any feeds in this channel.")
         return
 
-    view = await UnsubscribeSelectView.create(bot, ctx.channel.id, subscriptions) # UnsubscribeSelectViewを作成
-    await ctx.reply("購読解除するフィードを選択してください:", view=view)  # viewを渡す
+    view = await UnsubscribeSelectView.create(bot, ctx.channel.id, subscriptions)  # Create UnsubscribeSelectView
+    await ctx.reply("Select the feed to unsubscribe from:", view=view)  # Pass the view
 
-# 確認ボタン
+# Confirm Button
 class ConfirmButton(discord.ui.Button):
     def __init__(self, feed_url: str):
-        super().__init__(style=discord.ButtonStyle.danger, label="確認")
+        super().__init__(style=discord.ButtonStyle.danger, label="Confirm")
         self.feed_url = feed_url
 
     async def callback(self, interaction: discord.Interaction):
         remove_subscription(interaction.channel_id, self.feed_url)
-        await interaction.message.edit(content=f"{self.feed_url} の購読を解除しました。", view=None) # Viewを削除
+        await interaction.message.edit(content=f"Unsubscribed from {self.feed_url}.", view=None)  # Remove View
 
 class CancelButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(style=discord.ButtonStyle.secondary, label="キャンセル")
+        super().__init__(style=discord.ButtonStyle.secondary, label="Cancel")
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.edit(content="購読解除をとりやめました。購読設定は変更されていません。", view=None) # Viewを削除
+        await interaction.message.edit(content="Unsubscription canceled. Subscription settings have not been changed.", view=None)  # Remove View
 
 
 class ConfirmSelectionView(discord.ui.View):
@@ -198,27 +198,27 @@ class ConfirmSelectionView(discord.ui.View):
         self.add_item(ConfirmButton(feed_url))
         self.add_item(CancelButton())
 
-# フィードを選択するSelectMenu
+# Select Menu to choose the feed
 class UnsubscribeSelect(discord.ui.Select):
-    def __init__(self, feed_data: list[tuple[str,str]]): # feed_urlとfeed_nameのタプルのリストを受け取る
+    def __init__(self, feed_data: list[tuple[str,str]]):  # List of tuples of feed_url and feed_name
         options = []
         for feed_url, feed_name in feed_data:
-            label = feed_name if feed_name else feed_url # フィード名があればそれを、なければURLをラベルにする
+            label = feed_name if feed_name else feed_url  # Use feed name if available, otherwise use URL
             options.append(discord.SelectOption(label=label, value=feed_url))
-        super().__init__(placeholder="購読解除するフィードを選択...", options=options) # SelectMenuを初期化
+        super().__init__(placeholder="Select a feed to unsubscribe from...", options=options)  # Initialize SelectMenu
 
     async def callback(self, interaction: discord.Interaction):
-        #  Viewを更新して、ボタンの状態を反映する
+        #  Update View to reflect button states
         feed_url = self.values[0]
-        await interaction.response.edit_message(content=f"本当に{feed_url} を購読解除しますか?",view=ConfirmSelectionView(feed_url,interaction.channel_id))
+        await interaction.response.edit_message(content=f"Really unsubscribe from {feed_url}?",view=ConfirmSelectionView(feed_url,interaction.channel_id))
 
 
 class UnsubscribeSelectView(discord.ui.View):
     def __init__(self, bot,subscriptions: list[str], feed_data: list[tuple[str,str]]):
         super().__init__()
-        self.add_item(UnsubscribeSelect(feed_data))  # SelectMenuを追加
+        self.add_item(UnsubscribeSelect(feed_data))  # Add SelectMenu
         self.add_item(CancelButton())
-        #super().__init__(timeout=180) #タイムアウト設定
+        #super().__init__(timeout=180) #Timeout setting
 
     @classmethod
     async def create(cls, bot, channel_id: int, subscriptions: list[str]):
@@ -234,5 +234,5 @@ class UnsubscribeSelectView(discord.ui.View):
         return cls(bot, subscriptions, feed_data)
 
 
-# Botの起動
+# Start the Bot
 bot.run(TOKEN)
