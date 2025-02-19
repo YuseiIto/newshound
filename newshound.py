@@ -111,7 +111,7 @@ async def fetch_and_send_news():
 def get_subscriptions_all():
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT channel_id, feed_url FROM subscriptions")
+    cursor.execute("SELECT channel_id, feed_url,last_checked FROM subscriptions")
     subscriptions = cursor.fetchall()
     conn.close()
     return subscriptions
