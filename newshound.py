@@ -78,7 +78,7 @@ def remove_subscription(channel_id, feed_url):
 
 
 CONTENT_HEADER_TEMPLATE = "### :new: New articles at {time} ({entries_count} articles)"
-CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more]({link})"
+CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more](<{link}>)" # use <> to force link not to enriched
 
 async def send_feed_updates(channel, feed_url, entries):
     """Sends feed updates to a Discord channel."""
