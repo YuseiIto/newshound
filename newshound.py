@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands, tasks
 import feedparser
 import sqlite3
-import asyncio
 import os
 from dotenv import load_dotenv
 
