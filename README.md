@@ -13,6 +13,10 @@ Newshound is a Discord bot that sniffs out the latest news from your favorite RS
 -   **Unsubscribe with Ease:** Use the `/unsubscribe` command to manage which feeds Newshound fetches.
 -   **Customizable Formatting:** Control the appearance of posts by making the simple change of code - make Newshound look its best!
 
+<p align="center">
+ <img src="screenshot.png" alt="screenshot" height="300px"/>
+</p>
+
 ## 🚀 Getting Started
 
 ### Prerequisites
