@@ -171,7 +171,7 @@ async def unsubscribe(ctx):
 # Confirm Button
 class ConfirmButton(discord.ui.Button):
     def __init__(self, feed_url: str):
-        super().__init__(style=discord.ButtonStyle.danger, label="Confirm")
+        super().__init__(style=discord.ButtonStyle.danger, label="Unsubscribe")
         self.feed_url = feed_url
 
     async def callback(self, interaction: discord.Interaction):
