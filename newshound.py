@@ -81,6 +81,16 @@ def remove_subscription(channel_id, feed_url):
 CONTENT_HEADER_TEMPLATE = "### :new: New articles at {time} ({entries_count} articles)"
 CONTENT_ITEM_TEMPLATE = "- {title}\t[Read more]({link})"
 
+async def send_feed_updates(channel, feed_url, entries):
+    """Sends feed updates to a Discord channel."""
+    if entries and len(entries)>0:
+        content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(entries))
+        for entry in entries:
+            content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
+
+        content+="\n\n"
+        await channel.send(content=content)
+
 # Fetch news from RSS feeds and send to the channel
 async def fetch_and_send_news():
     subscriptions = get_subscriptions_all()  # Get all subscriptions
@@ -93,17 +103,8 @@ async def fetch_and_send_news():
                 if channel:
                     # Extract new articles
                     new_entries = [entry for entry in feed.entries if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) > last_checked]
+                    await send_feed_updates(channel, feed_url, new_entries)
 
-                    if len(new_entries)==0:
-                        return
-                    content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(new_entries))
-                    for entry in new_entries:
-                        content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
-
-                    content+="\n\n"
-                    await channel.send(content=content)
-                else:
-                    print(f"Channel not found: {channel_id}")  # Debugging
             update_last_checked(channel_id, feed_url)  # Update the last checked time
         except Exception as e:
             print(f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}")  # Debugging
@@ -147,13 +148,8 @@ async def subscribe(ctx, feed_url: str):
         # Send the latest 5 articles
         try:
             feed = feedparser.parse(feed_url)
-            if feed.entries and len(feed.entries)>0:
-                content = CONTENT_HEADER_TEMPLATE.format(time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), entries_count=len(feed.entries))
-                for entry in feed.entries[:min(len(feed.entries),5)]:
-                    content += "\n" + CONTENT_ITEM_TEMPLATE.format(title=entry.title, link=entry.link)
-
-                content+="\n\n"
-                await ctx.send(content=content)
+            entries = feed.entries[:min(len(feed.entries),5)]
+            await send_feed_updates(ctx.channel, feed_url, entries)
         except Exception as e:
             print(f"Failed to send initial articles: {feed_url}, Error: {e}")
 
