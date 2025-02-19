@@ -1,26 +1,25 @@
-# Newshound 📰
+# Newshound 🐕‍🦺📰
 
 <p align="center">
  <img src="newshound.png" alt="newshound logo" width="120px" height="120px"/>
 </p>
 
-Newshound is a Discord bot that delivers news from your favorite RSS feeds directly to your server.
-Stay informed without ever leaving Discord!
+Newshound is a Discord bot that sniffs out the latest news from your favorite RSS feeds and delivers it straight to your Discord server. Never miss a headline again - let Newshound do the digging for you!
 
 ## ✨ Features
 
--   **Subscribe to RSS Feeds:** Use the `/subscribe` command to add your favorite RSS feeds to a channel.
--   **Automatic News Delivery:** Newshound automatically fetches and posts new articles from subscribed feeds.
--   **Unsubscribe with Ease:** Use the `/unsubscribe` command to manage your subscriptions with an interactive menu.
--   **Customizable Formatting:** Control the appearance of news posts with flexible manner.
+-   **Subscribe to RSS Feeds:** Teach Newshound new tricks with the `/subscribe` command.
+-   **Automatic News Delivery:** Newshound automatically fetches and barks out new articles from subscribed feeds.
+-   **Unsubscribe with Ease:** Use the `/unsubscribe` command to manage which feeds Newshound fetches.
+-   **Customizable Formatting:** Control the appearance of posts by making the simple change of code - make Newshound look its best!
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 -   Python 3.9 or higher
--   [Rye](https://rye-up.com/) for managing dependencies
--   Docker (optional, for containerized deployment)
+-   [Rye](https://rye-up.com/) for managing dependencies (keeps your project well-groomed!)
+-   Docker (optional, for containerized deployment - a comfy kennel for Newshound)
 -   A Discord Bot Token (See [Discord Developer Portal](https://discord.com/developers/applications))
 
 ### Installation
@@ -55,7 +54,7 @@ Stay informed without ever leaving Discord!
     rye run alembic upgrade head
     ```
 
-    This command sets up the database schema.
+    This command sets up the database schema - ensures Newshound's got a solid foundation!
 
 ### Running the Bot
 
@@ -78,28 +77,28 @@ rye run python newshound.py
     ```bash
     docker run -d --name newshound-container -v newshound_data:/app -e DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN -e DATABASE_FILE=/app/newshound.db newshound
     ```
-   replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord Bot Token.
+
+    Replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord Bot Token.
 
 ## ⚙️ Commands
 
 -   `/subscribe <feed_url>`: Subscribes the current channel to the specified RSS feed.
--   `/unsubscribe`: Opens an interactive menu to unsubscribe from feeds.
+-   `/unsubscribe`: Opens an interactive menu to manage which feeds are fetched.
 
 ## 🛠️ Configuration
 
 The following environment variables can be configured:
 
 -   `DISCORD_BOT_TOKEN`: The Discord Bot Token.
--   `DATABASE_FILE`: The path to the SQLite database file.
+-   `DATABASE_FILE`: The path to the SQLite database file (where Newshound keeps its bones - err, data!).
 
 ## 🐳 Deployment
 
-Newshound is designed to be easily deployed with [Coolify](https://coolify.io/). 
-Simply connect your repository to Coolify and configure the necessary environment variables.
+Newshound is designed to be easily deployed with [Coolify](https://coolify.io/). Simply connect your repository to Coolify and configure the necessary environment variables.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please fork the repository, make your changes, and submit a pull request.
+Woof woof! Contributions are always welcome. Feel free to fork the repository, make your changes, and submit a pull request. Let's make Newshound the best news-fetching bot around!
 
 ## 📝 License
 
