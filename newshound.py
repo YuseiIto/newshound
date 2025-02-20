@@ -27,7 +27,16 @@ POLLING_INTERVAL_MINUTES = 5  # Polling interval (minutes)
 # Initialize Bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='/', intents=intents)
+
+class NewshoundBot(commands.Bot):
+    def __init__(self, intents):
+        super().__init__(command_prefix='/',intents=intents)
+
+    async def setup_hook(self):
+        polling_task.start()
+        print("Bot setup completed")
+
+bot = NewshoundBot(intents)
 
 
 def run_migrations():
@@ -122,12 +131,9 @@ def get_subscriptions_all():
 async def polling_task():
     await fetch_and_send_news()
 
-# Bot startup event
 @bot.event
 async def on_ready():
-    print(f'{bot.user} logged in')
-    run_migrations()  # Run migrations
-    polling_task.start()
+    print(f'Connected: {bot.user} logged in')
 
 # /subscribe Command
 @bot.command(name='subscribe')
@@ -229,5 +235,7 @@ class UnsubscribeSelectView(discord.ui.View):
         return cls(bot, subscriptions, feed_data)
 
 
-# Start the Bot
-bot.run(TOKEN)
+if __name__ == '__main__':
+    run_migrations()
+    # Start the bot
+    bot.run(TOKEN)
