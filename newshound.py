@@ -11,6 +11,10 @@ from alembic.config import Config
 
 from datetime import datetime, timezone
 
+import logging
+logger = logging.getLogger(__name__)
+log_handler = logging.StreamHandler()
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -176,36 +180,50 @@ async def polling_task():
 async def on_ready():
     print(f"Connected: {bot.user} logged in")
 
+class Feed:
+    def __init__(self, feed_url):
+        self.feed_url = feed_url
+        self.feed = feedparser.parse(feed_url)
+        self.sorted_entries = sorted(self.entries, key=lambda x: x.published_parsed, reverse=True)
+    
+    @property
+    def pretty_label(self):
+        return f"**{self.title}** ({self.url})" if self.title else self.url
+
+    @property
+    def title_or_url(self):
+        return self.feed.feed.get("title", self.feed_url)
+
+    @property
+    def title(self):
+        return self.feed.feed.get("title")
+
+    @property
+    def entries(self):
+        return self.feed.entries
+
+    @property
+    def url(self):
+        return self.feed_url
+
+    def recent_entries(self, count=5):
+        return self.entries[:count]
 
 # /subscribe Command
 @bot.command(name="subscribe")
 async def subscribe(ctx, feed_url: str):
-    try:
-        feed = feedparser.parse(feed_url)
-        feed_name = feed.feed.get("title", None)  # Get title
-    except:
-        feed_name = None
-
-    if add_subscription(ctx.channel.id, feed_url):
-        if feed_name:
-            await ctx.reply(
-                f"Started subscribing to **{feed_name}** ({feed_url}) in this channel."
-            )
-        else:
-            await ctx.reply(f"Started subscribing to {feed_url} in this channel.")
-
-        # Send the latest 5 articles
-        try:
-            feed = feedparser.parse(feed_url)
-            entries = feed.entries[: min(len(feed.entries), 5)]
-            await send_feed_updates(ctx.channel, feed_url, feed_name, entries)
-        except Exception as e:
-            print(f"Failed to send initial articles: {feed_url}, Error: {e}")
-
-        update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
-
-    else:
+    feed = Feed(feed_url)
+    if not add_subscription(ctx.channel.id, feed_url):
         await ctx.reply("Already subscribed to this feed.")
+        return
+
+    await ctx.reply(f"Started subscribing to {feed.pretty_label} in this channel.")
+    try:
+        entries = feed.recent_entries()
+        await send_feed_updates(ctx.channel, feed_url, feed.title, entries)
+    except Exception as e:
+        print(f"Failed to send initial articles: {feed_url}, Error: {e}")
+    update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
 
 
 # /unsubscribe Command
@@ -302,4 +320,4 @@ class UnsubscribeSelectView(discord.ui.View):
 if __name__ == "__main__":
     run_migrations()
     # Start the bot
-    bot.run(TOKEN)
+    bot.run(TOKEN,log_handler=log_handler)
