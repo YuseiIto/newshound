@@ -12,6 +12,7 @@ from alembic.config import Config
 from datetime import datetime, timezone
 
 import logging
+
 logger = logging.getLogger(__name__)
 log_handler = logging.StreamHandler()
 
@@ -26,7 +27,7 @@ if not TOKEN:
 
 # Get database file path from environment variables (default: newshound.db)
 DATABASE_FILE = os.environ.get("DATABASE_FILE", "newshound.db")
-POLLING_INTERVAL_MINUTES = 5  # Polling interval (minutes)
+POLLING_INTERVAL_MINUTES = 1  # Polling interval (minutes)
 
 # Initialize Bot
 intents = discord.Intents.default()
@@ -116,13 +117,13 @@ CONTENT_ITEM_TEMPLATE = (
 )
 
 
-async def send_feed_updates(channel, feed_url, feed_title, entries):
+async def send_feed_updates(channel, feed, entries):
     """Sends feed updates to a Discord channel."""
     if entries and len(entries) > 0:
         content = CONTENT_HEADER_TEMPLATE.format(
             time=datetime.now().strftime("%Y-%m-%d %H:%M"),
             entries_count=len(entries),
-            feed_title=feed_title,
+            feed_title=feed.title,
         )
         for entry in entries:
             content += "\n" + CONTENT_ITEM_TEMPLATE.format(
@@ -138,22 +139,12 @@ async def fetch_and_send_news():
     subscriptions = get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
+            feed = Feed(feed_url)
             last_checked = datetime.fromisoformat(last_checked_str)
-            feed = feedparser.parse(feed_url)
-            if feed.entries:
-                channel = bot.get_channel(channel_id)
-                if channel:
-                    # Extract new articles
-                    new_entries = [
-                        entry
-                        for entry in feed.entries
-                        if datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-                        > last_checked
-                    ]
-                    await send_feed_updates(
-                        channel, feed_url, feed.feed.get("title"), new_entries
-                    )
-
+            entries = feed.newer_entries_than(last_checked)
+            channel = bot.get_channel(channel_id)
+            if channel:
+                await send_feed_updates(channel, feed, entries)
             update_last_checked(channel_id, feed_url)  # Update the last checked time
         except Exception as e:
             print(
@@ -180,12 +171,15 @@ async def polling_task():
 async def on_ready():
     print(f"Connected: {bot.user} logged in")
 
+
 class Feed:
     def __init__(self, feed_url):
         self.feed_url = feed_url
         self.feed = feedparser.parse(feed_url)
-        self.sorted_entries = sorted(self.entries, key=lambda x: x.published_parsed, reverse=True)
-    
+        self.sorted_entries = sorted(
+            self.entries, key=lambda x: x.published_parsed, reverse=True
+        )
+
     @property
     def pretty_label(self):
         return f"**{self.title}** ({self.url})" if self.title else self.url
@@ -209,6 +203,14 @@ class Feed:
     def recent_entries(self, count=5):
         return self.entries[:count]
 
+    def newer_entries_than(self, timestamp):
+        return list(filter(
+            lambda entry: datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+            > timestamp,
+            self.sorted_entries,
+        ))
+
+
 # /subscribe Command
 @bot.command(name="subscribe")
 async def subscribe(ctx, feed_url: str):
@@ -219,8 +221,7 @@ async def subscribe(ctx, feed_url: str):
 
     await ctx.reply(f"Started subscribing to {feed.pretty_label} in this channel.")
     try:
-        entries = feed.recent_entries()
-        await send_feed_updates(ctx.channel, feed_url, feed.title, entries)
+        await send_feed_updates(ctx.channel, feed, feed.recent_entries())
     except Exception as e:
         print(f"Failed to send initial articles: {feed_url}, Error: {e}")
     update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
@@ -320,4 +321,4 @@ class UnsubscribeSelectView(discord.ui.View):
 if __name__ == "__main__":
     run_migrations()
     # Start the bot
-    bot.run(TOKEN,log_handler=log_handler)
+    bot.run(TOKEN, log_handler=log_handler)
