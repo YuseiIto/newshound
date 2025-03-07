@@ -60,10 +60,11 @@ async def fetch_and_send_news():
     subscriptions = repo.get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
-            print(f"Fetching feed: '{feed_url}' ... ",end="")
+            print(f"Fetching feed: '{feed_url}' ",end="")
             feed = Feed(feed_url)
             last_checked = datetime.fromisoformat(last_checked_str)
             entries = feed.newer_entries_than(last_checked)
+            print(f"[last checked at: {last_checked.isoformat()}]")
             entries.reverse()
             channel = bot.get_channel(channel_id)
             if channel:
@@ -72,10 +73,12 @@ async def fetch_and_send_news():
                 channel_id, feed_url
             )  # Update the last checked time
         except Exception as e:
+            print("...Failed")
             print(
-                f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
+                f"Reason: Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
             )  # Debugging
-        print("Done")
+            continue
+        print("... Done")
 
 @bot.event
 async def on_ready():
