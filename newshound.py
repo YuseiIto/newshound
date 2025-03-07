@@ -54,11 +54,13 @@ async def send_feed_updates(channel, feed, entries):
 # Fetch news from RSS feeds and send to the channel
 @tasks.loop(minutes=config.polling_interval_minutes)
 async def fetch_and_send_news():
-    print("Fetching and sending news")
+    print('-'*20)
+    print(f"Fetching and sending news UTC {datetime.utcnow().isoformat()}")
     repo = Repository(config)
     subscriptions = repo.get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
+            print(f"Fetching feed: '{feed_url}' ... ",end="")
             feed = Feed(feed_url)
             last_checked = datetime.fromisoformat(last_checked_str)
             entries = feed.newer_entries_than(last_checked)
@@ -73,6 +75,7 @@ async def fetch_and_send_news():
             print(
                 f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
             )  # Debugging
+        print("Done")
 
 @bot.event
 async def on_ready():
