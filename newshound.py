@@ -2,37 +2,21 @@ import discord
 from discord.ext import commands, tasks
 import feedparser
 import sqlite3
-import os
-from dotenv import load_dotenv
-
-# Alembic related imports
-from alembic import command
-from alembic.config import Config
-
 from datetime import datetime, timezone
-
 import logging
+
+from config import Config
+from migrations import run_migrations
 
 logger = logging.getLogger(__name__)
 log_handler = logging.StreamHandler()
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Get Discord Bot Token from environment variables
-TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
-if not TOKEN:
-    print("DISCORD_BOT_TOKEN is not set")
-    exit(1)
-
-# Get database file path from environment variables (default: newshound.db)
-DATABASE_FILE = os.environ.get("DATABASE_FILE", "newshound.db")
-POLLING_INTERVAL_MINUTES = 1  # Polling interval (minutes)
 
 # Initialize Bot
 intents = discord.Intents.default()
 intents.message_content = True
 
+config = Config.load()
 
 class NewshoundBot(commands.Bot):
     def __init__(self, intents):
@@ -44,17 +28,6 @@ class NewshoundBot(commands.Bot):
 
 
 bot = NewshoundBot(intents)
-
-
-def run_migrations():
-    alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option(
-        "sqlalchemy.url", f"sqlite:///{DATABASE_FILE}"
-    )  # Inject database URL
-    try:
-        command.upgrade(alembic_cfg, "head")  # Keep the database up-to-date
-    except Exception as e:
-        print(f"Migration Error: {e}")
 
 
 # Get subscription information from the database
@@ -163,7 +136,7 @@ def get_subscriptions_all():
 
 
 # Periodic polling task
-@tasks.loop(minutes=POLLING_INTERVAL_MINUTES)
+@tasks.loop(minutes=config.polling_interval_minutes)
 async def polling_task():
     await fetch_and_send_news()
 
@@ -320,6 +293,6 @@ class UnsubscribeSelectView(discord.ui.View):
 
 
 if __name__ == "__main__":
-    run_migrations()
+    run_migrations(config)
     # Start the bot
-    bot.run(TOKEN, log_handler=log_handler)
+    bot.run(config.discord_bot_token, log_handler=log_handler)
