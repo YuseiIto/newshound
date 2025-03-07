@@ -220,11 +220,8 @@ class UnsubscribeSelectView(discord.ui.View):
     async def create(cls, bot, channel_id: int, subscriptions: list[str]):
         feed_data = []
         for feed_url in subscriptions:
-            try:
-                feed = feedparser.parse(feed_url)
-                feed_name = feed.feed.get("title", None)
-            except:
-                feed_name = None
+            feed = Feed(feed_url)
+            feed_name = feed.title if feed.title else feed_url
             feed_data.append((feed_url, feed_name))
 
         return cls(bot, subscriptions, feed_data)
