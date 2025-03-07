@@ -18,10 +18,10 @@ aiosignal==1.3.2
     # via aiohttp
 alembic==1.14.1
     # via newshound
-async-timeout==5.0.1
-    # via aiohttp
 attrs==25.1.0
     # via aiohttp
+audioop-lts==0.2.1
+    # via discord-py
 discord-py==2.5.0
     # via newshound
 feedparser==6.0.11
@@ -50,7 +50,6 @@ sqlalchemy==2.0.38
     # via newshound
 typing-extensions==4.12.2
     # via alembic
-    # via multidict
     # via sqlalchemy
 yarl==1.18.3
     # via aiohttp

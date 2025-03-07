@@ -12,7 +12,7 @@ dependencies = [
     "alembic",
     "sqlalchemy"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.13"
 readme = "README.md"
 license = { text = "GPLv3" }
 
