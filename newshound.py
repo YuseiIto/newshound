@@ -64,7 +64,7 @@ async def fetch_and_send_news():
             feed = Feed(feed_url)
             last_checked = datetime.fromisoformat(last_checked_str)
             entries = feed.newer_entries_than(last_checked)
-            print(f"[last checked at: {last_checked.isoformat()}]")
+            print(f"[last checked at: {last_checked.isoformat()}]",end="")
             entries.reverse()
             channel = bot.get_channel(channel_id)
             if channel:
