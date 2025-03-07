@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands, tasks
 import feedparser
-import sqlite3
 from datetime import datetime, timezone
 import logging
 
 from config import Config
 from migrations import run_migrations
+from repository import Repository
 
 logger = logging.getLogger(__name__)
 log_handler = logging.StreamHandler()
@@ -28,59 +28,6 @@ class NewshoundBot(commands.Bot):
 
 
 bot = NewshoundBot(intents)
-
-
-# Get subscription information from the database
-def get_subscriptions(channel_id):
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT feed_url FROM subscriptions WHERE channel_id = ?", (channel_id,)
-    )
-    subscriptions = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in subscriptions]  # Return list of feed_url
-
-
-# Add subscription information to the database
-def add_subscription(channel_id, feed_url):
-    try:
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO subscriptions (channel_id, feed_url, last_checked) VALUES (?, ?, ?)",
-            (channel_id, feed_url, datetime.now(timezone.utc).isoformat()),
-        )
-        conn.commit()
-        conn.close()
-        return True
-    except sqlite3.IntegrityError:
-        return False  # Duplicate Subscription
-
-
-# Update last checked timestamp
-def update_last_checked(channel_id, feed_url):
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE subscriptions SET last_checked = ? WHERE channel_id = ? AND feed_url = ?",
-        (datetime.now(timezone.utc).isoformat(), channel_id, feed_url),
-    )
-    conn.commit()
-    conn.close()
-
-
-# Remove subscription information from the database
-def remove_subscription(channel_id, feed_url):
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM subscriptions WHERE channel_id = ? AND feed_url = ?",
-        (channel_id, feed_url),
-    )
-    conn.commit()
-    conn.close()
-
 
 CONTENT_HEADER_TEMPLATE = (
     "### :new: New articles from {feed_title} at {time} ({entries_count} articles)"
@@ -109,7 +56,7 @@ async def send_feed_updates(channel, feed, entries):
 
 # Fetch news from RSS feeds and send to the channel
 async def fetch_and_send_news():
-    subscriptions = get_subscriptions_all()  # Get all subscriptions
+    subscriptions = Repository(config).get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
             feed = Feed(feed_url)
@@ -119,21 +66,11 @@ async def fetch_and_send_news():
             channel = bot.get_channel(channel_id)
             if channel:
                 await send_feed_updates(channel, feed, entries)
-            update_last_checked(channel_id, feed_url)  # Update the last checked time
+            Repository(config).update_last_checked(channel_id, feed_url)  # Update the last checked time
         except Exception as e:
             print(
                 f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
             )  # Debugging
-
-
-def get_subscriptions_all():
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT channel_id, feed_url,last_checked FROM subscriptions")
-    subscriptions = cursor.fetchall()
-    conn.close()
-    return subscriptions
-
 
 # Periodic polling task
 @tasks.loop(minutes=config.polling_interval_minutes)
@@ -189,7 +126,8 @@ class Feed:
 @bot.command(name="subscribe")
 async def subscribe(ctx, feed_url: str):
     feed = Feed(feed_url)
-    if not add_subscription(ctx.channel.id, feed_url):
+    repo = Repository(config)
+    if not repo.add_subscription(ctx.channel.id, feed_url):
         await ctx.reply("Already subscribed to this feed.")
         return
 
@@ -198,13 +136,13 @@ async def subscribe(ctx, feed_url: str):
         await send_feed_updates(ctx.channel, feed, feed.recent_entries())
     except Exception as e:
         print(f"Failed to send initial articles: {feed_url}, Error: {e}")
-    update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
+    repo.update_last_checked(ctx.channel.id, feed_url)  # Update last checked time
 
 
 # /unsubscribe Command
 @bot.command(name="unsubscribe")
 async def unsubscribe(ctx):
-    subscriptions = get_subscriptions(ctx.channel.id)
+    subscriptions = Repository(config).get_subscriptions(ctx.channel.id)
     if not subscriptions:
         await ctx.reply("Not subscribed to any feeds in this channel.")
         return
@@ -222,7 +160,7 @@ class ConfirmButton(discord.ui.Button):
         self.feed_url = feed_url
 
     async def callback(self, interaction: discord.Interaction):
-        remove_subscription(interaction.channel_id, self.feed_url)
+        Repository(config).remove_subscription(interaction.channel_id, self.feed_url)
         await interaction.message.edit(
             content=f"Unsubscribed from {self.feed_url}.", view=None
         )  # Remove View
