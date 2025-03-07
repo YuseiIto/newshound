@@ -20,7 +20,7 @@ class NewshoundBot(commands.Bot):
         super().__init__(command_prefix="/", intents=intents)
 
     async def setup_hook(self):
-        polling_task.start()
+        fetch_and_send_news.start()
         print("Bot setup completed")
 
 
@@ -52,6 +52,7 @@ async def send_feed_updates(channel, feed, entries):
 
 
 # Fetch news from RSS feeds and send to the channel
+@tasks.loop(minutes=config.polling_interval_minutes)
 async def fetch_and_send_news():
     print("Fetching and sending news")
     repo = Repository(config)
@@ -72,13 +73,6 @@ async def fetch_and_send_news():
             print(
                 f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
             )  # Debugging
-
-
-# Periodic polling task
-@tasks.loop(minutes=config.polling_interval_minutes)
-async def polling_task():
-    await fetch_and_send_news()
-
 
 @bot.event
 async def on_ready():
