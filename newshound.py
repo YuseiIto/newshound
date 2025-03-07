@@ -116,4 +116,5 @@ async def unsubscribe(ctx):
 if __name__ == "__main__":
     run_migrations(config)
     # Start the bot
+    print("Starting bot service...")
     bot.run(config.discord_bot_token)
