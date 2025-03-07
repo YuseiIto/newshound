@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from datetime import datetime
+from datetime import datetime,UTC
 
 from config import Config
 from migrations import run_migrations
@@ -55,7 +55,7 @@ async def send_feed_updates(channel, feed, entries):
 @tasks.loop(minutes=config.polling_interval_minutes)
 async def fetch_and_send_news():
     print('-'*20)
-    print(f"Fetching and sending news UTC {datetime.utcnow().isoformat()}")
+    print(f"Fetching and sending news UTC {datetime.now(UTC)}")
     repo = Repository(config)
     subscriptions = repo.get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
