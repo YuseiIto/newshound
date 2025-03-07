@@ -1,17 +1,12 @@
 import discord
 from discord.ext import commands, tasks
 from datetime import datetime
-import logging
 
 from config import Config
 from migrations import run_migrations
 from repository import Repository
 from feed import Feed
 import ui
-
-logger = logging.getLogger(__name__)
-log_handler = logging.StreamHandler()
-
 
 # Initialize Bot
 intents = discord.Intents.default()
@@ -122,4 +117,4 @@ async def unsubscribe(ctx):
 if __name__ == "__main__":
     run_migrations(config)
     # Start the bot
-    bot.run(config.discord_bot_token, log_handler=log_handler)
+    bot.run(config.discord_bot_token)
