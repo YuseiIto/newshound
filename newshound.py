@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands, tasks
-import feedparser
-from datetime import datetime, timezone
+from datetime import datetime
 import logging
 
 from config import Config
 from migrations import run_migrations
 from repository import Repository
+from feed import Feed
 
 logger = logging.getLogger(__name__)
 log_handler = logging.StreamHandler()
@@ -17,6 +17,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 config = Config.load()
+
 
 class NewshoundBot(commands.Bot):
     def __init__(self, intents):
@@ -66,11 +67,14 @@ async def fetch_and_send_news():
             channel = bot.get_channel(channel_id)
             if channel:
                 await send_feed_updates(channel, feed, entries)
-            Repository(config).update_last_checked(channel_id, feed_url)  # Update the last checked time
+            Repository(config).update_last_checked(
+                channel_id, feed_url
+            )  # Update the last checked time
         except Exception as e:
             print(
                 f"Failed to retrieve or send RSS feed: {feed_url}, Error: {e}"
             )  # Debugging
+
 
 # Periodic polling task
 @tasks.loop(minutes=config.polling_interval_minutes)
@@ -81,45 +85,6 @@ async def polling_task():
 @bot.event
 async def on_ready():
     print(f"Connected: {bot.user} logged in")
-
-
-class Feed:
-    def __init__(self, feed_url):
-        self.feed_url = feed_url
-        self.feed = feedparser.parse(feed_url)
-        self.sorted_entries = sorted(
-            self.entries, key=lambda x: x.published_parsed, reverse=True
-        )
-
-    @property
-    def pretty_label(self):
-        return f"**{self.title}** ({self.url})" if self.title else self.url
-
-    @property
-    def title_or_url(self):
-        return self.feed.feed.get("title", self.feed_url)
-
-    @property
-    def title(self):
-        return self.feed.feed.get("title")
-
-    @property
-    def entries(self):
-        return self.feed.entries
-
-    @property
-    def url(self):
-        return self.feed_url
-
-    def recent_entries(self, count=5):
-        return self.entries[:count]
-
-    def newer_entries_than(self, timestamp):
-        return list(filter(
-            lambda entry: datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-            > timestamp,
-            self.sorted_entries,
-        ))
 
 
 # /subscribe Command
