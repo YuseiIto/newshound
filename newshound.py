@@ -53,7 +53,9 @@ async def send_feed_updates(channel, feed, entries):
 
 # Fetch news from RSS feeds and send to the channel
 async def fetch_and_send_news():
-    subscriptions = Repository(config).get_subscriptions_all()  # Get all subscriptions
+    print("Fetching and sending news")
+    repo = Repository(config)
+    subscriptions = repo.get_subscriptions_all()  # Get all subscriptions
     for channel_id, feed_url, last_checked_str in subscriptions:
         try:
             feed = Feed(feed_url)
@@ -63,7 +65,7 @@ async def fetch_and_send_news():
             channel = bot.get_channel(channel_id)
             if channel:
                 await send_feed_updates(channel, feed, entries)
-            Repository(config).update_last_checked(
+            repo.update_last_checked(
                 channel_id, feed_url
             )  # Update the last checked time
         except Exception as e:
