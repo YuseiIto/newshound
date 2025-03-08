@@ -69,9 +69,14 @@ async def fetch_and_send_news():
             channel = bot.get_channel(channel_id)
             if channel:
                 await send_feed_updates(channel, feed, entries)
-            repo.update_last_checked(
-                channel_id, feed_url
-            )  # Update the last checked time
+                repo.update_last_checked(
+                    channel_id, feed_url
+                )  # Update the last checked time
+            else:
+                print("...Aborted")
+                print(f"Reason: Channel {channel_id} not found. Connection might be lost.")
+                continue
+
         except Exception as e:
             print("...Failed")
             print(
