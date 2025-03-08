@@ -10,7 +10,8 @@ dependencies = [
     "feedparser",
     "python-dotenv",
     "alembic",
-    "sqlalchemy"
+    "sqlalchemy",
+    "python-dateutil>=2.9.0.post0",
 ]
 requires-python = ">=3.13"
 readme = "README.md"

@@ -41,10 +41,14 @@ multidict==6.1.0
 propcache==0.2.1
     # via aiohttp
     # via yarl
+python-dateutil==2.9.0.post0
+    # via newshound
 python-dotenv==1.0.1
     # via newshound
 sgmllib3k==1.0.0
     # via feedparser
+six==1.17.0
+    # via python-dateutil
 sqlalchemy==2.0.38
     # via alembic
     # via newshound

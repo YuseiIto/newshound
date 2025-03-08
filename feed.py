@@ -1,12 +1,12 @@
 import feedparser
-from datetime import datetime,timezone
+from dateutil import parser as dateparser
 
 class Feed:
     def __init__(self, feed_url):
         self.feed_url = feed_url
         self.feed = feedparser.parse(feed_url)
         self.sorted_entries = sorted(
-            self.entries, key=lambda x: x.published_parsed, reverse=True
+            self.entries, key=lambda x: dateparser.parse(x.published), reverse=True
         )
 
     @property
@@ -34,7 +34,7 @@ class Feed:
 
     def newer_entries_than(self, timestamp):
         return list(filter(
-            lambda entry: datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+            lambda entry: dateparser.parse(entry.published) # There is entry.published_parsed field, but it's not timezone aware so parsing it by dateutil
             > timestamp,
             self.sorted_entries,
         ))
